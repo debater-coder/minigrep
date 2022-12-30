@@ -4,31 +4,47 @@ pub struct Config {
     pub query: String,
     pub file_path: String,
     pub ignore_case: bool,
+    pub help: bool,
 }
 
 impl Config {
-    pub fn build(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("not enough arguments. Try passing --help for help.");
-        }
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
+        args.next();
 
-        let query = args[1].clone();
-        let file_path = args[2].clone();
+        let query = match args.next() {
+            Some(arg) => match arg.as_str() {
+                "--help" => {
+                    return Ok(Config {
+                        help: true,
+                        query: String::new(),
+                        file_path: String::new(),
+                        ignore_case: false,
+                    })
+                }
+                _ => arg,
+            },
+            None => return Err("Didn't get a query string"),
+        };
 
-        let mut ignore_case = env::var("IGNORE_CASE").is_ok();
+        let file_path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file path"),
+        };
 
-        if args.len() > 3 {
-            if args[3] == "--ignore-case" {
-                ignore_case = true;
-            } else if args[3] == "--case-sensitive" {
-                ignore_case = false;
-            }
-        }
+        let ignore_case = match args.next() {
+            Some(arg) => match arg.as_str() {
+                "--ignore-case" => true,
+                "--case-sensitive" => false,
+                _ => env::var("IGNORE_CASE").is_ok(),
+            },
+            None => env::var("IGNORE_CASE").is_ok(),
+        };
 
         Ok(Config {
             query,
             file_path,
             ignore_case,
+            help: false,
         })
     }
 }
